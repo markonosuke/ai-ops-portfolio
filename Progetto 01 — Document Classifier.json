@@ -1,0 +1,343 @@
+{
+  "name": "Progetto 01 — Document Classifier",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "768908d6-83a1-44db-9a4c-087029bdc9c0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "df51e0d3-0676-4c4f-a805-e5ed4c2bbd4c",
+      "name": "Webhook",
+      "webhookId": "768908d6-83a1-44db-9a4c-087029bdc9c0"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "P&ID",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "73df33b1-8c53-42db-b723-996e21af76e8"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pid"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4487661d-5b78-4a41-830e-db08b5a26a48",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "Datasheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "datasheet"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7ccc0ca7-c095-430c-a874-50ac128eb8d0",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "Specifica",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "specifica"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3d1c6801-ba1f-4009-8128-e00c69ac737d",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "Layout",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "altro"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        992,
+        160
+      ],
+      "id": "5b11781e-e99c-4f5a-a1f8-9a83c199b785",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Rispondi SOLO con il JSON grezzo. Vietato usare backtick, vietato usare ```json, vietato aggiungere testo prima o dopo il JSON.\nSei un assistente tecnico per impianti industriali.\nAnalizza questi dati e rispondimi SOLO con JSON puro su una riga senza newline:\n{\"tipo\":\"[P&ID o Datasheet o Specifica o Layout o Altro]\",\"revisione\":\"[lettera]\",\"urgenza\":\"[Alta o Media o Bassa]\",\"azione\":\"[cosa fare]\"}\n\nDati:\nTipo: {{ $json.query.tipo }}\nRevisione: {{ $json.query.revisione }}\nStato: {{ $json.query.stato }}\nMittente: {{ $json.query.mittente }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "2deeb525-6e1d-4197-9607-33719fa4d9e2",
+      "name": "Message a model1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "d2amsDDqw0hVciaY",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst raw = item.json.content[0].text;\nconst parsed = JSON.parse(raw.trim());\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        144
+      ],
+      "id": "e7a01b53-70ea-4e1e-9b7d-1f611f6acbbb",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "171d1355-1736-4a9b-ba43-13cd534a68f4",
+              "name": "=messaggio",
+              "value": "=P&ID Rev {{ $json.revisione }} ricevuto da {{ $json.azione }} — urgenza {{ $json.urgenza }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1184,
+        -176
+      ],
+      "id": "6dd13f80-6cf0-4da5-9054-a7dd57d1fef9",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "46775789-1ba1-4f52-8a00-ae18ebb9ec24",
+              "name": "=messaggio",
+              "value": "=Datasheet archiviato automaticamente — Rev {{ $json.revisione }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1264,
+        32
+      ],
+      "id": "c8c77fa3-5cda-47d8-b4b7-ca72707f2f88",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1232,
+        256
+      ],
+      "id": "5eaa7c8d-f8bf-4d04-919f-751b42dbcf35",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5c978a01-66e6-4353-aef9-157347402d74",
+              "name": "=messaggio",
+              "value": "Documento non classificato — smistamento manuale richiesto",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1216,
+        432
+      ],
+      "id": "d3df2644-fd63-46d3-a1ca-15333d8fe7bb",
+      "name": "Edit Fields2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d1e10a66-e0e0-46ef-b6bd-cb4946bf972b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "uNT4V9m9FbgPDRzr",
+  "tags": []
+}
