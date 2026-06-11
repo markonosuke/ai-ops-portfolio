@@ -1,0 +1,157 @@
+{
+  "name": "Sistema — Error Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "from": "onboarding@resend.dev",
+        "to": "=markonosuke@gmail.com",
+        "subject": "=Errore workflow: {{ $json.workflow.name }}",
+        "html": "=Si è verificato un errore in uno dei tuoi workflow.<br><br>\nWorkflow: {{ $json.workflow.name }}<br>\nErrore: {{ $json.execution.error.message }}<br>\nQuando: {{ $json.execution.startedAt }}<br><br>\nControlla n8n per i dettagli.",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-resend.resend",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        -256
+      ],
+      "id": "d86ead4d-43a8-4a12-a7d8-c3346652e225",
+      "name": "Send a new email",
+      "webhookId": "a7884a21-a946-4597-82e8-047cb13a2c28",
+      "credentials": {
+        "resendApi": {
+          "id": "ADsIveLdoSdLrPm8",
+          "name": "Resend account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/workflow_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56c2R3cGZwbHRiam5ncHV3ZW5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3OTkxNSwiZXhwIjoyMDk2NjU1OTE1fQ.Z4V85Bg6tXoCM3F91RdVsDGTFMAslk4i2d9tlkMIWro"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "timestamp",
+              "value": "={{ $now }}"
+            },
+            {
+              "name": "workflow",
+              "value": "={{ $json.workflow_name }}"
+            },
+            {
+              "name": "esito",
+              "value": "errore"
+            },
+            {
+              "name": "documento",
+              "value": "={{ $json.node_name }}"
+            },
+            {
+              "name": "dettaglio",
+              "value": "={{ $json.error_message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1664,
+        0
+      ],
+      "id": "dc59b6d7-d542-423a-bdc8-095d19e430c1",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        896,
+        0
+      ],
+      "id": "26cd350f-a238-4dea-a6bc-4513b0e9a9b9",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = items[0].json;\n\nreturn [{\n  json: {\n    workflow_name: item.workflow.name,\n    node_name: item.execution.lastNodeExecuted,\n    error_message: item.execution.error.message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "d7c81817-fd4e-4ad6-afe5-69184045a626",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Send a new email": {
+      "main": [
+        []
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a new email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "OqRzMVEc3ckv3Ufo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "8df738a9-c700-48ff-b968-320d1c344234",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "2cw4ffSjnpR839m1",
+  "tags": []
+}
