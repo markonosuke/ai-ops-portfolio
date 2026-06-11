@@ -1,217 +1,253 @@
-{
-  "name": "Progetto 03 — Drawing Approval Agent",
-  "nodes": [
-    {
-      "parameters": {
-        "path": "57695002-ed11-4d08-9711-1cc2c12d8b1d",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        0,
-        0
-      ],
-      "id": "cd787ce7-dddf-4cb8-971d-7fcd790804e8",
-      "name": "Webhook",
-      "webhookId": "57695002-ed11-4d08-9711-1cc2c12d8b1d"
-    },
-    {
-      "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "claude-haiku-4-5-20251001",
-          "mode": "list",
-          "cachedResultName": "claude-haiku-4-5-20251001"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "=Sei un sistema di verifica documenti tecnici industriali.\n\nVerifica se tutti i campi obbligatori sono presenti e non vuoti.\n\nCampi ricevuti:\n- Numero documento: {{ $json.query.numero }}\n- Titolo: {{ $json.query.titolo }}\n- Revisione: {{ $json.query.revisione }}\n- Data: {{ $json.query.data }}\n- Progettista: {{ $json.query.progettista }}\n- Nr. Commessa: {{ $json.query.commessa }}\n- Materiale: {{ $json.query.materiale }}\n- Peso: {{ $json.query.peso }}\n\nRispondi SOLO con questo JSON puro senza backtick:\n{\"esito\":\"OK\",\"campi_mancanti\":[],\"messaggio\":\"Tutti i campi presenti\"}\n\nSe manca qualcosa:\n{\"esito\":\"KO\",\"campi_mancanti\":[\"campo1\",\"campo2\"],\"messaggio\":\"Campi mancanti: campo1, campo2\"}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.anthropic",
-      "typeVersion": 1,
-      "position": [
-        208,
-        0
-      ],
-      "id": "c9d5c91e-b4f5-44f3-a9fd-db4056ac1ef8",
-      "name": "Message a model",
-      "credentials": {
-        "anthropicApi": {
-          "id": "d2amsDDqw0hVciaY",
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const item = $input.first();\nconst raw = item.json.content[0].text;\nconst parsed = JSON.parse(raw.trim());\nreturn [{ json: parsed }];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        560,
-        0
-      ],
-      "id": "85fe3436-c756-4bef-8164-b04394fe69b7",
-      "name": "Code in JavaScript"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "3212234e-208d-4d2e-a205-61e40085e69a",
-              "leftValue": "={{ $json.esito }}",
-              "rightValue": "OK",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        768,
-        0
-      ],
-      "id": "208a1da5-e5f5-436b-944e-4028924fa528",
-      "name": "If"
-    },
-    {
-      "parameters": {
-        "from": "onboarding@resend.dev",
-        "to": "markonosuke@gmail.com",
-        "subject": "=✅ Disegno APPROVATO: {{ $('Webhook').item.json.query.numero }} — {{ $('Webhook').item.json.query.titolo }}",
-        "html": "=Il disegno è stato verificato con esito positivo.<br><br>\nNumero: {{ $('Webhook').item.json.query.numero }}<br>\nTitolo: {{ $('Webhook').item.json.query.titolo }}<br>\nRevisione: {{ $('Webhook').item.json.query.revisione }}<br>\nProgettista: {{ $('Webhook').item.json.query.progettista }}<br>\nCommessa: {{ $('Webhook').item.json.query.commessa }}<br><br>\nTutti i campi obbligatori sono presenti.",
-        "additionalOptions": {}
-      },
-      "type": "n8n-nodes-resend.resend",
-      "typeVersion": 1,
-      "position": [
-        976,
-        -96
-      ],
-      "id": "3f33cae0-e1b9-47cb-adf4-de748c244687",
-      "name": "Send a new email",
-      "webhookId": "465fd443-5680-439f-a9f3-e195a4c4ca24",
-      "credentials": {
-        "resendApi": {
-          "id": "ADsIveLdoSdLrPm8",
-          "name": "Resend account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "from": "onboarding@resend.dev",
-        "to": "markonosuke@gmail.com",
-        "subject": "=❌ Disegno RIFIUTATO: {{ $('Webhook').item.json.query.numero }}",
-        "html": "=Il disegno non può essere approvato.<br><br>\nNumero: {{ $('Webhook').item.json.query.numero }}<br>\nTitolo: {{ $('Webhook').item.json.query.titolo }}<br><br>\nCampi mancanti: {{ $json.campi_mancanti.join(', ') }}<br><br>\n{{ $json.messaggio }}",
-        "additionalOptions": {}
-      },
-      "type": "n8n-nodes-resend.resend",
-      "typeVersion": 1,
-      "position": [
-        976,
-        96
-      ],
-      "id": "827663e6-6293-41e1-ab6e-d6b9816b6b38",
-      "name": "Send a new email1",
-      "webhookId": "18b21768-ac6e-49d4-8ee8-48a9ec395897",
-      "credentials": {
-        "resendApi": {
-          "id": "ADsIveLdoSdLrPm8",
-          "name": "Resend account"
-        }
-      }
-    }
-  ],
-  "pinData": {},
-  "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Message a model",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Message a model": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Send a new email",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send a new email1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "active": false,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "timeSavedMode": "fixed",
-    "errorWorkflow": "OqRzMVEc3ckv3Ufo",
-    "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
-  },
-  "versionId": "21940aef-5360-459e-ab20-95d5e41ac128",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
-  },
-  "id": "GToEV7SFZiV9gzqS",
-  "tags": []
-}
+	
+name	"Progetto 03 — Drawing Approval Agent"
+nodes	
+0	
+parameters	
+path	"57695002-ed11-4d08-9711-1cc2c12d8b1d"
+options	{}
+type	"n8n-nodes-base.webhook"
+typeVersion	2.1
+position	
+0	0
+1	0
+id	"cd787ce7-dddf-4cb8-971d-7fcd790804e8"
+name	"Webhook"
+webhookId	"57695002-ed11-4d08-9711-1cc2c12d8b1d"
+1	
+parameters	
+modelId	
+__rl	true
+value	"claude-haiku-4-5-20251001"
+mode	"list"
+cachedResultName	"claude-haiku-4-5-20251001"
+messages	
+values	
+0	
+content	'=Sei un sistema di verifica documenti tecnici industriali.\n\nVerifica se tutti i campi obbligatori sono presenti e non vuoti.\n\nCampi ricevuti:\n- Numero documento: {{ $json.query.numero }}\n- Titolo: {{ $json.query.titolo }}\n- Revisione: {{ $json.query.revisione }}\n- Data: {{ $json.query.data }}\n- Progettista: {{ $json.query.progettista }}\n- Nr. Commessa: {{ $json.query.commessa }}\n- Materiale: {{ $json.query.materiale }}\n- Peso: {{ $json.query.peso }}\n\nRispondi SOLO con questo JSON puro senza backtick:\n{"esito":"OK","campi_mancanti":[],"messaggio":"Tutti i campi presenti"}\n\nSe manca qualcosa:\n{"esito":"KO","campi_mancanti":["campo1","campo2"],"messaggio":"Campi mancanti: campo1, campo2"}'
+options	{}
+type	"@n8n/n8n-nodes-langchain.anthropic"
+typeVersion	1
+position	
+0	208
+1	0
+id	"c9d5c91e-b4f5-44f3-a9fd-db4056ac1ef8"
+name	"Message a model"
+credentials	
+anthropicApi	
+id	"d2amsDDqw0hVciaY"
+name	"Anthropic account"
+2	
+parameters	
+jsCode	"const item = $input.first();\nconst raw = item.json.content[0].text;\nconst parsed = JSON.parse(raw.trim());\nreturn [{ json: parsed }];"
+type	"n8n-nodes-base.code"
+typeVersion	2
+position	
+0	560
+1	0
+id	"85fe3436-c756-4bef-8164-b04394fe69b7"
+name	"Code in JavaScript"
+3	
+parameters	
+conditions	
+options	
+caseSensitive	true
+leftValue	""
+typeValidation	"strict"
+version	3
+conditions	
+0	
+id	"3212234e-208d-4d2e-a205-61e40085e69a"
+leftValue	"={{ $json.esito }}"
+rightValue	"OK"
+operator	
+type	"string"
+operation	"equals"
+name	"filter.operator.equals"
+combinator	"and"
+options	{}
+type	"n8n-nodes-base.if"
+typeVersion	2.3
+position	
+0	768
+1	0
+id	"208a1da5-e5f5-436b-944e-4028924fa528"
+name	"If"
+4	
+parameters	
+from	"onboarding@resend.dev"
+to	"markonosuke@gmail.com"
+subject	"=✅ Disegno APPROVATO: {{ $('Webhook').item.json.query.numero }} — {{ $('Webhook').item.json.query.titolo }}"
+html	"=Il disegno è stato verificato con esito positivo.<br><br>\nNumero: {{ $('Webhook').item.json.query.numero }}<br>\nTitolo: {{ $('Webhook').item.json.query.titolo }}<br>\nRevisione: {{ $('Webhook').item.json.query.revisione }}<br>\nProgettista: {{ $('Webhook').item.json.query.progettista }}<br>\nCommessa: {{ $('Webhook').item.json.query.commessa }}<br><br>\nTutti i campi obbligatori sono presenti."
+additionalOptions	{}
+type	"n8n-nodes-resend.resend"
+typeVersion	1
+position	
+0	976
+1	-96
+id	"3f33cae0-e1b9-47cb-adf4-de748c244687"
+name	"Send a new email"
+webhookId	"465fd443-5680-439f-a9f3-e195a4c4ca24"
+credentials	
+resendApi	
+id	"ADsIveLdoSdLrPm8"
+name	"Resend account"
+5	
+parameters	
+from	"onboarding@resend.dev"
+to	"markonosuke@gmail.com"
+subject	"=❌ Disegno RIFIUTATO: {{ $('Webhook').item.json.query.numero }}"
+html	"=Il disegno non può essere approvato.<br><br>\nNumero: {{ $('Webhook').item.json.query.numero }}<br>\nTitolo: {{ $('Webhook').item.json.query.titolo }}<br><br>\nCampi mancanti: {{ $json.campi_mancanti.join(', ') }}<br><br>\n{{ $json.messaggio }}"
+additionalOptions	{}
+type	"n8n-nodes-resend.resend"
+typeVersion	1
+position	
+0	976
+1	96
+id	"827663e6-6293-41e1-ab6e-d6b9816b6b38"
+name	"Send a new email1"
+webhookId	"18b21768-ac6e-49d4-8ee8-48a9ec395897"
+credentials	
+resendApi	
+id	"ADsIveLdoSdLrPm8"
+name	"Resend account"
+6	
+parameters	
+method	"POST"
+url	"https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/workflow_logs"
+sendHeaders	true
+headerParameters	
+parameters	
+0	
+name	"apikey"
+value	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56c2R3cGZwbHRiam5ncHV3ZW5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3OTkxNSwiZXhwIjoyMDk2NjU1OTE1fQ.Z4V85Bg6tXoCM3F91RdVsDGTFMAslk4i2d9tlkMIWro"
+1	
+name	"Content-Type"
+value	"application/json"
+sendBody	true
+bodyParameters	
+parameters	
+0	
+name	"timestamp"
+value	"={{ $now }}"
+1	
+name	"workflow"
+value	"Drawing Approval Agent"
+2	
+name	"esito"
+value	"approvato"
+3	
+name	"documento"
+value	"={{ $('Webhook').item.json.query.numero }}"
+4	
+name	"dettaglio"
+value	"Email approvazione inviata"
+options	{}
+type	"n8n-nodes-base.httpRequest"
+typeVersion	4.4
+position	
+0	1184
+1	-96
+id	"76fb144b-7139-47a1-b7dc-25db5de793cf"
+name	"HTTP Request"
+7	
+parameters	
+method	"POST"
+url	"https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/workflow_logs"
+sendHeaders	true
+headerParameters	
+parameters	
+0	
+name	"apikey"
+value	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56c2R3cGZwbHRiam5ncHV3ZW5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3OTkxNSwiZXhwIjoyMDk2NjU1OTE1fQ.Z4V85Bg6tXoCM3F91RdVsDGTFMAslk4i2d9tlkMIWro"
+1	
+name	"Content-Type"
+value	"application/json"
+sendBody	true
+bodyParameters	
+parameters	
+0	
+name	"timestamp"
+value	"={{ $now }}"
+1	
+name	"workflow"
+value	"Drawing Approval Agent"
+2	
+name	"esito"
+value	"rifiutato"
+3	
+name	"documento"
+value	"={{ $('Webhook').item.json.query.numero }}"
+4	
+name	"dettaglio"
+value	"Email rifiuto inviata"
+options	{}
+type	"n8n-nodes-base.httpRequest"
+typeVersion	4.4
+position	
+0	1184
+1	96
+id	"a23400be-3edf-4aaa-9f5b-4de875dfa636"
+name	"HTTP Request1"
+pinData	{}
+connections	
+Webhook	
+main	
+0	
+0	
+node	"Message a model"
+type	"main"
+index	0
+Message a model	
+main	
+0	
+0	
+node	"Code in JavaScript"
+type	"main"
+index	0
+Code in JavaScript	
+main	
+0	
+0	
+node	"If"
+type	"main"
+index	0
+If	
+main	
+0	
+0	
+node	"Send a new email"
+type	"main"
+index	0
+1	
+0	
+node	"Send a new email1"
+type	"main"
+index	0
+Send a new email	
+main	
+0	
+0	
+node	"HTTP Request"
+type	"main"
+index	0
+Send a new email1	
+main	
+0	
+0	
+node	"HTTP Request1"
+type	"main"
+index	0
+active	false
+settings	
+executionOrder	"v1"
+binaryMode	"separate"
+timeSavedMode	"fixed"
+errorWorkflow	"OqRzMVEc3ckv3Ufo"
+callerPolicy	"workflowsFromSameOwner"
+availableInMCP	false
+versionId	"949f0d5e-d32f-4618-880e-b95bd787207b"
+meta	
+templateCredsSetupCompleted	true
+instanceId	"b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+id	"GToEV7SFZiV9gzqS"
+tags	[]
