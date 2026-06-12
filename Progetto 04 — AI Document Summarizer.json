@@ -1,0 +1,205 @@
+{
+  "name": "Progetto 04 — AI Document Summarizer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "110315ad-83ea-459f-8e19-d89bf2b23140",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "40ca6ec4-8873-4ff2-b1ac-554b0ee3c90a",
+      "name": "Webhook",
+      "webhookId": "110315ad-83ea-459f-8e19-d89bf2b23140"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_API_KEY_HERE"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type ",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5\",\n  \"max_tokens\": 1024,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Sei un assistente tecnico industriale. Ricevi un documento e produci un riassunto in 3-5 punti bullet, in italiano, focalizzato sulle informazioni chiave e le azioni richieste. Rispondi SOLO con il riassunto, senza introduzioni o conclusioni.\\n\\nDocumento:\\n{{ $json.body.testo }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1e520db8-275f-45f3-8bf0-ac36385d71dc",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const risposta = items[0].json;\nconst riassunto = risposta.content[0].text;\n\nreturn [{\n  json: {\n    riassunto: riassunto\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "0377974b-89ca-4f84-ab2f-fb660b2b48df",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "from": "onboarding@resend.dev",
+        "to": "markonosuke@gmail.com",
+        "subject": "Nuovo riassunto documento",
+        "html": "={{ $json.riassunto }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-resend.resend",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "492363f8-acb4-4f84-a37e-c8c83d2b5f12",
+      "name": "Send a new email",
+      "webhookId": "eb250791-74fa-45f7-932c-c61a75eb9375",
+      "credentials": {
+        "resendApi": {
+          "id": "ADsIveLdoSdLrPm8",
+          "name": "Resend account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/workflow_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56c2R3cGZwbHRiam5ncHV3ZW5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3OTkxNSwiZXhwIjoyMDk2NjU1OTE1fQ.Z4V85Bg6tXoCM3F91RdVsDGTFMAslk4i2d9tlkMIWro"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "timestamp",
+              "value": "={{ $now }}"
+            },
+            {
+              "name": "workflow",
+              "value": "AI Document Summarizer"
+            },
+            {
+              "name": "esito",
+              "value": "successo "
+            },
+            {
+              "name": "documento",
+              "value": "={{ $('Webhook').item.json.body.testo.substring(0, 100) }}"
+            },
+            {
+              "name": "dettaglio",
+              "value": "Riassunto generato e email inviata"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "0d8c177a-2d09-42d8-a184-3c8701fe181d",
+      "name": "HTTP Request2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a new email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a new email": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2e290e3a-d37b-406c-8467-b0b388c726e4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "LtCd9UsAbhCt1yUi",
+  "tags": []
+}
