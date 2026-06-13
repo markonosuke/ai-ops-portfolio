@@ -1,0 +1,204 @@
+{
+  "name": "Progetto 05 — AI Cost Estimator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "660cbc21-d62f-4904-a78f-8470b18c37aa",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7a84c853-b712-4828-af70-1a86196648d4",
+      "name": "Webhook",
+      "webhookId": "660cbc21-d62f-4904-a78f-8470b18c37aa"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_API_KEY_HERE"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type ",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5\",\n  \"max_tokens\": 1024,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Sei un preventivista esperto di officina metalmeccanica. Ricevi la descrizione di un pezzo e devi calcolare un preventivo realistico.\\n\\nDati pezzo:\\n- Tipo: {{ $json.body.tipo }}\\n- Materiale: {{ $json.body.materiale }}\\n- Dimensioni: {{ $json.body.dimensioni }}\\n- Spessore: {{ $json.body.spessore }}\\n- Quantità: {{ $json.body.quantita }}\\n\\nCalcola e rispondi SOLO con questo JSON, senza altro testo:\\n{\\n  \\\"materiale_grezzo_kg\\\": numero,\\n  \\\"bulloni_quantita\\\": numero,\\n  \\\"ore_lavorazione\\\": numero,\\n  \\\"costo_materiale_eur\\\": numero,\\n  \\\"costo_manodopera_eur\\\": numero,\\n  \\\"costo_totale_eur\\\": numero,\\n  \\\"note\\\": \\\"breve nota tecnica\\\"\\n}\\n\\nUsa questi prezzi di riferimento:\\n- Lamiera acciaio: 1.20 €/kg\\n- Lamiera inox: 4.50 €/kg\\n- Profilati: 1.50 €/kg\\n- Bulloneria: 0.30 €/pz\\n- Manodopera: 35 €/ora\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        176,
+        0
+      ],
+      "id": "8967a313-ec5c-4113-b015-2ea8c6e9e630",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const risposta = items[0].json;\nlet testo = risposta.content[0].text;\n\n// Pulisce eventuali backtick markdown\ntesto = testo.replace(/```json\\n?/g, '').replace(/```/g, '').trim();\n\nconst preventivo = JSON.parse(testo);\n\nreturn [{\n  json: preventivo\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        0
+      ],
+      "id": "bad36294-9deb-43bc-8dc3-bba66427a00f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "from": "onboarding@resend.dev",
+        "to": "markonosuke@gmail.com",
+        "subject": "Preventivo automatico — €{{ $json.costo_totale_eur }}",
+        "html": "=<h2>Preventivo automatico</h2>\n<p><strong>Materiale grezzo:</strong> {{ $json.materiale_grezzo_kg }} kg</p>\n<p><strong>Bulloni:</strong> {{ $json.bulloni_quantita }} pz</p>\n<p><strong>Ore di lavorazione:</strong> {{ $json.ore_lavorazione }} h</p>\n<hr>\n<p><strong>Costo materiale:</strong> €{{ $json.costo_materiale_eur }}</p>\n<p><strong>Costo manodopera:</strong> €{{ $json.costo_manodopera_eur }}</p>\n<p><strong>COSTO TOTALE:</strong> €{{ $json.costo_totale_eur }}</p>\n<hr>\n<p><em>{{ $json.note }}</em></p>",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-resend.resend",
+      "typeVersion": 1,
+      "position": [
+        576,
+        0
+      ],
+      "id": "0602ef19-d975-4575-83ec-ef836eb6940f",
+      "name": "Send a new email",
+      "webhookId": "eb250791-74fa-45f7-932c-c61a75eb9375",
+      "credentials": {
+        "resendApi": {
+          "id": "ADsIveLdoSdLrPm8",
+          "name": "Resend account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/workflow_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56c2R3cGZwbHRiam5ncHV3ZW5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3OTkxNSwiZXhwIjoyMDk2NjU1OTE1fQ.Z4V85Bg6tXoCM3F91RdVsDGTFMAslk4i2d9tlkMIWro"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "timestamp",
+              "value": "={{ $now }}"
+            },
+            {
+              "name": "workflow",
+              "value": "AI Cost Estimator"
+            },
+            {
+              "name": "esito",
+              "value": "successo "
+            },
+            {
+              "name": "documento",
+              "value": "={{ $('Webhook').item.json.body.tipo }}"
+            },
+            {
+              "name": "dettaglio",
+              "value": "=Preventivo €{{ $('Code in JavaScript').item.json.costo_totale_eur }} — {{ $('Code in JavaScript').item.json.ore_lavorazione }}h"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        0
+      ],
+      "id": "a5807fd3-fcd8-4f47-88fd-1c0399bd36a0",
+      "name": "HTTP Request2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a new email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a new email": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "97bbd2f5-7d51-4985-99aa-bed46ba199a6",
+  "meta": {
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "qJ35Y6eZVsUxVzlB",
+  "tags": []
+}
