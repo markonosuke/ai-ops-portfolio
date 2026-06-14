@@ -1,0 +1,45 @@
+# Progetto 07 — AI Technical Document Classifier
+Descrizione
+
+Workflow che riceve un documento tecnico di ingegneria industriale via webhook, lo invia a Claude per classificarlo e estrarre dati strutturati, salva il risultato su database e invia una notifica email.
+Trigger
+
+Webhook POST — riceve un JSON con il campo document_text
+Flusso
+
+Webhook → Code (parsing) → HTTP Request (Claude API) → Code (estrazione) → HTTP Request (Supabase) → HTTP Request (Resend)
+Logica
+
+Il Webhook riceve il documento come JSON via POST
+Code estrae e pulisce il campo document_text dal body
+HTTP Request invia il testo a Claude API con prompt di classificazione
+Code estrae e parsa il JSON dalla risposta di Claude
+HTTP Request salva il risultato nella tabella p07_classifications su Supabase
+HTTP Request invia email con il risultato della classificazione via Resend
+
+Prompt engineering
+
+Claude riceve un system prompt che lo definisce come classificatore di documenti tecnici industriali e gli richiede output JSON puro senza markdown. Il prompt utente specifica la struttura esatta del JSON atteso con i campi document_type, confidence, language, keywords, summary. Temperature 0 e max_tokens 200 per output deterministico.
+Categorie di classificazione
+
+P&ID — Piping & Instrumentation Diagram
+MANUAL — Manuale tecnico / istruzioni operative
+SPEC — Specifica tecnica / datasheet
+REPORT — Report di ispezione / collaudo
+OTHER — Non classificabile
+
+Tool utilizzati
+
+n8n
+Claude API (classificazione documento)
+Supabase (storage risultati)
+Resend (notifica email)
+
+Competenze dimostrate
+
+Webhook POST con body JSON e production URL
+Chiamata diretta a Claude API via HTTP Request con system prompt
+Parsing e pulizia risposta Claude con Code node (rimozione markdown code block)
+Output JSON strutturato con estrazione campi multipli
+Logging su database PostgreSQL via Supabase REST API
+Riferimento esplicito a nodo precedente con $('Nome nodo').first().json
