@@ -1,31 +1,30 @@
 # Progetto 06 — Daily Report Generator
 
-## Descrizione
-Workflow automatizzato che genera ogni giorno un report sintetico delle attività registrate su Supabase, lo invia via email e salva il log di esecuzione.
+## Problema
+La rendicontazione giornaliera delle attività registrate da un sistema automatizzato, se fatta a mano, richiede ogni giorno di leggere i log grezzi, sintetizzarli in un testo leggibile e inviarli via email. È un lavoro ripetitivo, facile da dimenticare e soggetto a giorni saltati.
 
-## Trigger
-Schedule — esecuzione automatica giornaliera
+## Soluzione
+Workflow automatizzato che ogni giorno legge le attività registrate su Supabase, le fa sintetizzare a Claude in un report in italiano, lo invia via email e salva il log della propria esecuzione. Nessun intervento manuale.
 
-## Flusso
+## Architettura
 Schedule Trigger → HTTP Request GET Supabase → Code 1 → HTTP Request POST Claude → Code 2 → Resend → HTTP Request POST Supabase
 
 ## Logica
-- Schedule Trigger avvia il workflow ogni giorno
+- Schedule Trigger avvia il workflow ogni giorno a orario fisso
 - HTTP Request GET legge i record dalla tabella workflow_logs su Supabase
-- Code 1 aggrega i record in un testo unico con separatore |||
-- HTTP Request POST invia il testo a Claude che genera il report in italiano
-- Code 2 estrae content[0].text dalla risposta Claude
+- Code 1 aggrega i record in un testo unico usando il separatore ||| per non rompere il JSON
+- HTTP Request POST invia il testo a Claude, che genera il report in linguaggio naturale in italiano
+- Code 2 estrae il testo della risposta da content[0].text
 - Resend invia il report via email
 - HTTP Request POST salva il log di esecuzione su Supabase
 
-## Stack tecnico
-- n8n — orchestrazione workflow
-- Supabase — database PostgreSQL (lettura log + scrittura log)
-- Claude API (Haiku) — generazione report in linguaggio naturale
+## Tool utilizzati
+- n8n — orchestrazione del workflow
+- Supabase — database PostgreSQL, lettura log in ingresso e scrittura log di esecuzione
+- Claude API (Haiku) — generazione del report in linguaggio naturale
 - Resend — invio email
 
-## Competenze dimostrate
-- Lettura e scrittura database via HTTP Request diretto
-- Aggregazione dati con Code node in JavaScript
-- Integrazione Claude API per generazione testo
-- Pipeline completa: dati → AI → email → log
+## Risultati stimati
+- Tempo di stesura report: 0 minuti vs 15-20 minuti manuali al giorno
+- Continuità: esecuzione garantita 7 giorni su 7 vs dipendente dalla presenza di una persona
+- Report mai dimenticati: 0 giorni saltati vs rischio di omissioni manuali
