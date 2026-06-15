@@ -1,0 +1,249 @@
+{
+  "name": "Progetto 06 — Daily Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fc9b73ac-0295-4a6a-8b25-fad26b9c509d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "=https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/workflow_logs?order=created_at.desc&limit=50",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_API_KEY_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5b21496d-3bf2-4c56-a1b3-242a3f031988",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_API_KEY_HERE"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type ",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5\",\n  \"max_tokens\": 1024,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Analizza questi log e genera un report giornaliero in italiano. Log: {{ $json.log_text }} Totale: {{ $json.totale_record }} esecuzioni. Includi: totale esecuzioni, successi/errori, workflow attivi, stato sistema.\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        0
+      ],
+      "id": "2aff64fe-a890-449b-808e-800558bf1732",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const records = items.map(item => item.json);\n\nconst riassunto = records.map(r =>\n  `[${r.timestamp}] ${r.workflow} - ${r.esito} - ${r.documento} - ${r.dettaglio}`\n).join(' ||| ');\n\nreturn [{\n  json: {\n    log_text: riassunto,\n    totale_record: records.length\n  }\n}];;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        0
+      ],
+      "id": "cacc793c-65b8-42ef-ad81-a2125d8f7fa1",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\nconst testo = response.content[0].text;\n\nreturn [{\n  json: {\n    report: testo\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        256
+      ],
+      "id": "358a0445-3103-4092-9365-5280afd9f3e4",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "from": "onboarding@resend.dev",
+        "to": "markonosuke@gmail.com",
+        "subject": "=Daily Report - {{ new Date().toISOString().split('T')[0] }}",
+        "emailFormat": "text",
+        "text": "={{ $json.report }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-resend.resend",
+      "typeVersion": 1,
+      "position": [
+        768,
+        256
+      ],
+      "id": "9a08cd58-dd9d-4202-bb63-209a463c4de6",
+      "name": "Send a new email",
+      "webhookId": "bf34e292-0e15-4845-802b-888b4d9986e4",
+      "credentials": {
+        "resendApi": {
+          "id": "ADsIveLdoSdLrPm8",
+          "name": "Resend account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/workflow_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56c2R3cGZwbHRiam5ncHV3ZW5iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTA3OTkxNSwiZXhwIjoyMDk2NjU1OTE1fQ.Z4V85Bg6tXoCM3F91RdVsDGTFMAslk4i2d9tlkMIWro"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"workflow\": \"Progetto 06 - Daily Report\",\n  \"esito\": \"success\",\n  \"documento\": \"report giornaliero\",\n  \"dettaglio\": \"Report generato e inviato via email\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        464
+      ],
+      "id": "e27578a5-1e4a-4dd3-b371-88d15034aacd",
+      "name": "HTTP Request2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send a new email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a new email": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f2830e11-5169-4d9c-9533-3d1d499b1fe6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "VDOFIeUBcYvv066I",
+  "tags": []
+}
