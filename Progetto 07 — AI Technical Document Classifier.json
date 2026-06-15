@@ -1,0 +1,241 @@
+{
+  "name": "Progetto 07 — AI Technical Document Classifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "p07-classifier",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "81974eea-17c3-4c4e-8c16-69a0f55c8099",
+      "name": "Webhook",
+      "webhookId": "4fccb099-b366-42c9-9c97-dec0ffb735fa"
+    },
+    {
+      "parameters": {
+        "jsCode": "const documentText = $input.first().json.body.document_text;\n\nif (!documentText) {\n  throw new Error(\"Campo document_text mancante nel body\");\n}\n\nreturn [{\n  json: {\n    document_text: documentText.trim()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9bd87ce7-874c-4b9b-9a99-c05679d51591",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_API_KEY_HERE"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "=content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5\",\n  \"max_tokens\": 200,\n  \"temperature\": 0,\n  \"system\": \"You are a technical document classifier specialized in industrial engineering. Your task is to analyze technical documents and return a structured JSON object. Always respond with valid JSON only. No explanations, no markdown, no extra text.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze the following technical document and return this exact JSON structure:\\n\\n{\\\"document_type\\\": \\\"P&ID\\\" | \\\"MANUAL\\\" | \\\"SPEC\\\" | \\\"REPORT\\\" | \\\"OTHER\\\", \\\"confidence\\\": \\\"high\\\" | \\\"medium\\\" | \\\"low\\\", \\\"language\\\": \\\"IT\\\" | \\\"EN\\\" | \\\"DE\\\" | \\\"FR\\\" | \\\"OTHER\\\", \\\"keywords\\\": [\\\"keyword1\\\", \\\"keyword2\\\", \\\"keyword3\\\"], \\\"summary\\\": \\\"max 2 sentences describing the document content\\\"}\\n\\nDocument:\\n{{ $json.document_text }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        384,
+        0
+      ],
+      "id": "d833bf1a-b870-4243-bfe3-ee9076a16928",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.content[0].text\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\nconst parsed = JSON.parse(raw);\n\nreturn [{\n  json: {\n    document_type: parsed.document_type,\n    confidence: parsed.confidence,\n    language: parsed.language,\n    keywords: parsed.keywords,\n    summary: parsed.summary\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        192
+      ],
+      "id": "927f6869-3e26-4f32-8234-dc6b1eafac1d",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/p07_classifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "=apikey",
+              "value": "YOUR_API_KEY_HERE"
+            },
+            {
+              "name": "=Authorization",
+              "value": "YOUR_API_KEY_HERE"
+            },
+            {
+              "name": "=Content-Type",
+              "value": "=application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"document_type\": \"{{ $json.document_type }}\",\n  \"confidence\": \"{{ $json.confidence }}\",\n  \"language\": \"{{ $json.language }}\",\n  \"keywords\": \"{{ $json.keywords.join(', ') }}\",\n  \"summary\": \"{{ $json.summary }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        192
+      ],
+      "id": "c4ea0368-ae38-4eb7-827a-68b304ca93ca",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "re_UuyMwd8o_JMyVozc9mu3w8Tpm1bShZToi"
+            },
+            {
+              "name": "Content-Type",
+              "value": "=application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from",
+              "value": "onboarding@resend.dev"
+            },
+            {
+              "name": "to",
+              "value": "markonosuke@gmail.com"
+            },
+            {
+              "name": "subject",
+              "value": "={{ \"Documento classificato — \" + $('Code in JavaScript1').first().json.document_type }}"
+            },
+            {
+              "name": "html",
+              "value": "={{ \"<h2>Documento classificato</h2><p><b>Tipo:</b> \" + $('Code in JavaScript1').first().json.document_type + \"</p><p><b>Confidenza:</b> \" + $('Code in JavaScript1').first().json.confidence + \"</p><p><b>Lingua:</b> \" + $('Code in JavaScript1').first().json.language + \"</p><p><b>Keywords:</b> \" + $('Code in JavaScript1').first().json.keywords.join(\", \") + \"</p><p><b>Sommario:</b> \" + $('Code in JavaScript1').first().json.summary + \"</p>\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        192
+      ],
+      "id": "86036d10-eac4-4e28-aeff-b56d8bc050b0",
+      "name": "HTTP Request2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "136b9241-42aa-4bbb-b41c-f05e61de15cf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "wlDP8LkLUFE3O5qF",
+  "tags": []
+}
