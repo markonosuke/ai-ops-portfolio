@@ -1,0 +1,41 @@
+# P08 - BOM Validator & Enricher
+
+## Descrizione
+Workflow n8n che riceve una distinta base (BOM), valida ogni riga contro un set di regole e arricchisce ogni componente tramite Claude, producendo un report di sintesi. Caso d'uso verticale per l'ambito engineering e manifatturiero, dove il controllo qualita delle distinte e un'attivita ripetitiva e soggetta a errori.
+
+## Trigger
+Manual Trigger (esecuzione manuale). In produzione sostituibile con una sorgente reale, ad esempio un Google Sheet o un file CSV, senza modificare la logica a valle.
+
+## Flusso
+- Trigger
+- Distinta esempio: genera le righe della BOM, una riga per item
+- Valida righe: applica le regole di validazione a ogni riga
+- Prepara richiesta Claude: costruisce il body della chiamata API per ogni riga
+- Chiama Claude: chiamata HTTP all'API di Claude, una per riga
+- Estra risposta: estrae e ripulisce il JSON restituito da Claude
+- Report: aggrega i risultati su tutte le righe
+
+## Logica
+- Validazione per riga: controlli deterministici sui campi; ogni riga riceve un campo stato (ok oppure errore) e un campo problemi con l'elenco delle anomalie.
+- Arricchimento per riga: Claude (modello Haiku) assegna una categoria al componente e restituisce una descrizione normalizzata, in formato JSON.
+- Aggregazione finale: il report conta righe totali, righe ok, righe in errore ed elenca il dettaglio dei problemi.
+- I nodi Code di validazione, preparazione e arricchimento girano in modalita Run Once for Each Item; il report gira in Run Once for All Items.
+
+## Regole di validazione
+- codice articolo mancante o vuoto
+- descrizione mancante o piu corta di 3 caratteri
+- quantita non numerica, pari a zero o negativa
+- unita di misura mancante
+- revisione mancante
+
+## Tool utilizzati
+- n8n self-hosted su Docker
+- Claude API (Haiku) via nodo HTTP Request
+- JavaScript nei nodi Code
+
+## Competenze dimostrate
+- Elaborazione di un dataset multi-riga sfruttando il modello a item di n8n
+- Validazione a regole su dati strutturati
+- Integrazione di un LLM via API REST: costruzione del body, invio, parsing della risposta
+- Gestione dell'output JSON di un LLM, inclusa la rimozione dei delimitatori markdown
+- Debugging di flussi dati e di chiamate API: body, modalita di esecuzione dei nodi
