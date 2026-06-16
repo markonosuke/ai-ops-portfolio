@@ -1,0 +1,205 @@
+{
+  "name": "P08 - BOM Validator",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3a3e4b2d-4365-4623-88e8-2614b18f2e0d",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { json: { codice: \"VLV-001\", descrizione: \"Valvola a sfera DN50\", quantita: 4, um: \"pz\", revisione: \"A\" } },\n  { json: { codice: \"FLG-110\", descrizione: \"Flangia UNI 2278 DN50\", quantita: 8, um: \"pz\", revisione: \"A\" } },\n  { json: { codice: \"\", descrizione: \"Guarnizione spirometallica\", quantita: 8, um: \"pz\", revisione: \"A\" } },\n  { json: { codice: \"BLT-M16\", descrizione: \"Bullone M16x70\", quantita: 0, um: \"pz\", revisione: \"B\" } },\n  { json: { codice: \"PIP-002\", descrizione: \"\", quantita: 12, um: \"m\", revisione: \"A\" } }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c3004279-3938-498c-ab44-800529f192ce",
+      "name": "Distinta esempio"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const r = { ...$json };\nconst problemi = [];\n\nif (!r.codice || r.codice.trim() === \"\") problemi.push(\"codice mancante\");\nif (!r.descrizione || r.descrizione.trim().length < 3) problemi.push(\"descrizione mancante\");\nif (typeof r.quantita !== \"number\" || r.quantita <= 0) problemi.push(\"quantità non valida\");\nif (!r.um || r.um.trim() === \"\") problemi.push(\"unità di misura mancante\");\nif (!r.revisione || r.revisione.trim() === \"\") problemi.push(\"revisione mancante\");\n\nr.stato = problemi.length === 0 ? \"ok\" : \"errore\";\nr.problemi = problemi.join(\"; \");\n\nreturn { json: r };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "805d0993-2d69-4b32-bccb-f3f04057d8b1",
+      "name": "Valida righe"
+    },
+    {
+      "parameters": {
+        "jsCode": "const righe = $input.all().map(i => i.json);\nconst errori = righe.filter(r => r.stato === \"errore\");\n\nreturn {\n  json: {\n    totale_righe: righe.length,\n    righe_ok: righe.length - errori.length,\n    righe_errore: errori.length,\n    dettaglio_errori: errori.map(r => `${r.codice || \"(senza codice)\"}: ${r.problemi}`)\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        240
+      ],
+      "id": "938c4720-d0a8-4c0e-9bc9-6567f6efbe8f",
+      "name": "Report"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const r = { ...$json };\n\nr.requestBody = {\n  model: \"claude-haiku-4-5\",\n  max_tokens: 200,\n  temperature: 0,\n  messages: [\n    {\n      role: \"user\",\n      content: `Sei un classificatore di componenti meccanici e di impianto. Data la descrizione di un articolo di distinta base, restituisci SOLO un JSON con due campi: \"categoria\" (una tra valvola, flangia, guarnizione, raccordo, tubazione, bulloneria, strumentazione, carpenteria, altro) e \"descrizione_norm\" (descrizione ripulita, prima lettera maiuscola). Nessun testo prima o dopo il JSON. Descrizione: ${r.descrizione}`\n    }\n  ]\n};\n\nreturn { json: r };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        240
+      ],
+      "id": "3917cd07-caec-4118-adae-74132fd00c06",
+      "name": "Prepara richiesta Claude"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR KEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type ",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        240
+      ],
+      "id": "376f7e3a-aba6-4d1c-8539-1f31ec60d886",
+      "name": "Chiama Claude"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const originale = $('Valida righe').item.json;\n\nlet testo = $json.content[0].text.trim();\ntesto = testo.replace(/^```(?:json)?\\s*/i, \"\").replace(/\\s*```$/i, \"\");\n\nlet categoria = \"altro\";\nlet descrizione_norm = originale.descrizione;\n\ntry {\n  const parsed = JSON.parse(testo);\n  categoria = parsed.categoria || \"altro\";\n  descrizione_norm = parsed.descrizione_norm || originale.descrizione;\n} catch (e) {\n  categoria = \"errore_parsing\";\n}\n\nreturn { json: { ...originale, categoria, descrizione_norm } };$input.item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        240
+      ],
+      "id": "32eddd32-8503-4910-bd25-dfd6e0b3a48e",
+      "name": "Estra risposta"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Distinta esempio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Distinta esempio": {
+      "main": [
+        [
+          {
+            "node": "Valida righe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valida righe": {
+      "main": [
+        [
+          {
+            "node": "Prepara richiesta Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report": {
+      "main": [
+        []
+      ]
+    },
+    "Prepara richiesta Claude": {
+      "main": [
+        [
+          {
+            "node": "Chiama Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chiama Claude": {
+      "main": [
+        [
+          {
+            "node": "Estra risposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estra risposta": {
+      "main": [
+        [
+          {
+            "node": "Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0fbcbcc5-8062-4fae-89f4-c1667542568c",
+  "meta": {
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "dX5hO2HgVwg7cQHz",
+  "tags": []
+}
