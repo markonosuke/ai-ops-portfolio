@@ -1,0 +1,291 @@
+{
+  "name": "Progetto 09 — Validazione BOM con RAG",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "973eed51-b168-4d89-8811-a45184de22a2",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1cb4ea7-6a67-4d92-8e0b-dc813e19f17a",
+              "name": "testo",
+              "value": "Tubo DN50 Sch40 A53 Gr.B",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "cc9cac55-9d24-4978-90ad-63cb7bbb2f03",
+      "name": "Riga BOM esempio"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const requestBody = {\n  model: \"models/gemini-embedding-001\",\n  content: { parts: [{ text: $json.testo }] },\n  taskType: \"RETRIEVAL_QUERY\",\n  outputDimensionality: 768\n};\n\nreturn {\n  json: {\n    codice: $json.codice,\n    testo: $json.testo,\n    fonte: $json.fonte,\n    requestBody: requestBody\n  }\n};;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        208
+      ],
+      "id": "d021b149-3278-4fcf-b9dd-2aa8beade36c",
+      "name": "Prepara richiesta Gemini"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-goog-api-key",
+              "value": "YOUR APIKEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        208
+      ],
+      "id": "dfe96880-ec62-4a5e-8310-ee5747fc543e",
+      "name": "Chiama Gemini"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nzsdwpfpltbjngpuwenb.supabase.co/rest/v1/rpc/match_componenti",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR APIKEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR APIKEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        176,
+        432
+      ],
+      "id": "56b51d5a-ca0a-44ce-9223-22602c83ae76",
+      "name": "Chiama match_componenti"
+    },
+    {
+      "parameters": {
+        "jsCode": "// MODALITÀ: Run Once for All Items\n// Input = i candidati recuperati da match_componenti\n\nconst candidati = $input.all();\n\n// Riga BOM dal nodo a monte (riferimento per nome)\nconst rigaBom = $('Riga BOM esempio').first().json.testo;\n\n// Impagino i candidati, uno per riga, per inserirli nel prompt\nconst candidatiTesto = candidati.map((item, i) => {\n  const c = item.json;\n  return `${i + 1}. codice: ${c.codice} | descrizione: ${c.testo} | distanza: ${c.distanza}`;\n}).join('\\n');\n\n// Riempio i segnaposto del prompt con i dati veri\nconst prompt = `Sei un validatore tecnico di distinte base (BOM) per impianti di piping.\nDevi validare una riga di BOM confrontandola con i componenti di catalogo forniti.\n\nRIGA BOM DA VALIDARE:\n${rigaBom}\n\nCOMPONENTI DI CATALOGO (recuperati per similarità, ordinati dal più vicino):\n${candidatiTesto}\n\nISTRUZIONI:\n- Usa SOLO i componenti di catalogo qui sopra. Non inventare codici.\n- C'è match esatto solo se diametro, schedule e materiale coincidono tutti.\n- Se non c'è match esatto, scegli il componente più pertinente e descrivi nella motivazione la discrepanza precisa (cosa coincide e cosa no).\n- Se nessun componente è ragionevolmente pertinente, l'esito è nessun_match e codice_catalogo è null.\n\nRispondi SOLO con un oggetto JSON, senza alcun testo prima o dopo, in questo formato:\n{\n  \"esito\": \"match_esatto | anomalia | nessun_match\",\n  \"codice_catalogo\": \"codice del componente piu pertinente, oppure null\",\n  \"motivazione\": \"una frase che spiega la decisione e l'eventuale discrepanza\"\n}`;\n\nconst requestBody = {\n  model: \"claude-haiku-4-5\",\n  max_tokens: 300,\n  temperature: 0,\n  messages: [\n    { role: \"user\", content: prompt }\n  ]\n};\n\nreturn [{ json: { requestBody } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        640
+      ],
+      "id": "e7a71e02-e87b-494c-b06f-fd3dff0708cc",
+      "name": "Prepara richiesta Claude"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR APIKEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type ",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        176,
+        640
+      ],
+      "id": "71142012-a423-400c-8fb2-f509a189f702",
+      "name": "Chiama Claude"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input = risposta di Claude (1 item)\nlet testo = $json.content[0].text;\n\n// Tolgo l'involucro ```json ... ``` che Claude aggiunge spesso\ntesto = testo.replace(/```json/g, '').replace(/```/g, '').trim();\n\n// Trasformo la stringa in oggetto vero\nconst validazione = JSON.parse(testo);\n\nreturn validazione;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        640
+      ],
+      "id": "0ddcd99c-44aa-46cb-958a-84971d0fdc82",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const embedding = $json.embedding.values;\n\nconst requestBody = {\n  query_embedding: JSON.stringify(embedding),\n  match_count: 5\n};\n\nreturn { requestBody };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        432
+      ],
+      "id": "eba0b070-5a64-4492-aa6b-bf2569e65d92",
+      "name": "Prepara richiesta Supabase"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Riga BOM esempio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Riga BOM esempio": {
+      "main": [
+        [
+          {
+            "node": "Prepara richiesta Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara richiesta Gemini": {
+      "main": [
+        [
+          {
+            "node": "Chiama Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chiama Gemini": {
+      "main": [
+        [
+          {
+            "node": "Prepara richiesta Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chiama match_componenti": {
+      "main": [
+        [
+          {
+            "node": "Prepara richiesta Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara richiesta Claude": {
+      "main": [
+        [
+          {
+            "node": "Chiama Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chiama Claude": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara richiesta Supabase": {
+      "main": [
+        [
+          {
+            "node": "Chiama match_componenti",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "42d4ab0e-96d0-44df-b36d-7440acca5132",
+  "meta": {
+    "instanceId": "b3022671d7303882fef67f75e7e3721d62558f5ba906444af9df9344e2e6490b"
+  },
+  "id": "2SpoMAkcDdL7K0jP",
+  "tags": []
+}
