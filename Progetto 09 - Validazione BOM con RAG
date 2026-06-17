@@ -1,0 +1,60 @@
+# Progetto 09 - Validazione BOM con RAG
+
+## Descrizione
+Sistema di validazione automatica delle righe di distinta base (BOM) contro un catalogo tecnico di componenti, basato su architettura RAG (Retrieval-Augmented Generation).
+
+Il problema: verificare manualmente se una riga di BOM corrisponde a un componente reale di catalogo è lento e soggetto a errori. Le discrepanze critiche sono spesso sottili - un diametro corretto ma un materiale non equivalente, una sigla simile ma con caratteristiche funzionali diverse (per esempio ASTM A106 senza saldatura per alta pressione contro ASTM A53 saldato per servizi generali). Sono proprio gli errori che sfuggono a un controllo superficiale e che a valle diventano costosi.
+
+La soluzione: data una riga di BOM, il sistema recupera dal catalogo i componenti semanticamente più vicini tramite ricerca vettoriale, poi affida a un modello linguistico ancorato a quei candidati il giudizio tecnico finale. L'output non è un semplice elenco di componenti simili, ma un verdetto strutturato con motivazione, utilizzabile a valle da filtri, report o notifiche.
+
+## Trigger
+Manual Trigger. Una riga di BOM di esempio viene definita in un nodo dedicato, in modo da collaudare l'intera pipeline su un input controllato. La sorgente dinamica (file, foglio, webhook) è prevista come estensione successiva.
+
+## Flusso
+- Manual Trigger
+- Riga BOM esempio: definisce la riga da validare
+- Prepara richiesta Gemini: costruisce la richiesta di embedding con taskType RETRIEVAL_QUERY
+- Chiama Gemini: calcola l'embedding della riga (768 dimensioni)
+- Prepara richiesta RPC: impacchetta il vettore come stringa e imposta il numero di candidati
+- Chiama match_componenti: chiamata RPC alla funzione SQL su Supabase, restituisce i candidati più vicini
+- Prepara richiesta Claude: aggrega i candidati e la riga BOM in un unico prompt di grounding
+- Chiama Claude: valutazione tecnica con output JSON
+- Estrai risposta Claude: ripulisce e converte la risposta in dati strutturati
+
+## Logica
+La riga di BOM viene trasformata in un vettore nello stesso spazio semantico del catalogo, usando lo stesso modello dell'indicizzazione ma con taskType RETRIEVAL_QUERY al posto di RETRIEVAL_DOCUMENT: questo allinea correttamente il lato query con il lato documento.
+
+La ricerca per similarità usa la distanza coseno (operatore pgvector) e restituisce sempre i candidati più vicini, anche quando nessuno è realmente pertinente. Il giudizio finale spetta quindi al modello, istruito a usare solo i candidati forniti, a non inventare codici, e a classificare la riga in uno di tre esiti:
+- match_esatto: diametro, schedule e materiale coincidono
+- anomalia: esiste un componente vicino ma con una discrepanza, descritta nella motivazione
+- nessun_match: nessun candidato pertinente, codice catalogo null
+
+L'output è un oggetto JSON con esito, codice_catalogo e motivazione.
+
+## Architettura RAG
+Il sistema poggia su due strati distinti e complementari.
+
+Strato di recupero: una knowledge base di componenti reali (piping, valvole, flange, supporti, guarnizioni, bulloneria) indicizzata in pgvector su Supabase, interrogata per similarità semantica. Questo strato restringe il campo dai numerosi componenti del catalogo ai pochi realmente plausibili.
+
+Strato di giudizio: il modello linguistico riceve i candidati recuperati come unico contesto e decide se la riga trova riscontro, ancorando la risposta ai dati reali e non alla propria conoscenza generale. È questo ancoraggio a prevenire risposte inventate e a permettere il riconoscimento di un nessun_match anche quando la ricerca ha comunque restituito dei candidati.
+
+## Risultati stimati
+- Riduzione stimata del tempo di verifica di una riga da minuti di consultazione manuale a pochi secondi
+- Segnalazione automatica delle anomalie di specifica (materiale, diametro, schedule) prima della fase produttiva
+- Riduzione del rischio di sostituzioni non equivalenti, con motivazione tecnica tracciabile su ogni verdetto
+- Aggancio di ogni riga a un codice di catalogo reale, a supporto della tracciabilità
+
+## Tool utilizzati
+- n8n (orchestrazione del workflow)
+- Supabase - PostgreSQL con estensione pgvector (vector store e funzione di ricerca)
+- Gemini API - modello gemini-embedding-001 (embedding semantici)
+- Claude API - Haiku (giudizio tecnico con grounding)
+- HTTP Request e Code node
+
+## Competenze dimostrate
+- Progettazione di una pipeline RAG completa, dall'indicizzazione alla query
+- Embedding semantici e ricerca per similarità coseno con pgvector
+- Funzioni SQL e chiamate RPC verso un database PostgreSQL
+- Prompt engineering con grounding e output JSON strutturato
+- Integrazione e orchestrazione di più API (embedding, ragionamento, database) in un unico flusso
+- Applicazione dell'AI a un dominio ingegneristico reale (validazione BOM contro catalogo piping)
